@@ -1,0 +1,42 @@
+name: CI/CD Spring Boot → EC2
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: 🔄 Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Java 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Build JAR
+      run: mvn clean package -DskipTests
+
+    - name: Preparar llave SSH
+      run: |
+        echo "${{ secrets.EC2_SSH_KEY_B64 }}" | base64 -d > ec2.pem
+        chmod 600 ec2.pem
+
+    - name: Copiar JAR al EC2
+      run: |
+        scp -i ec2.pem -o StrictHostKeyChecking=no \
+          target/CRUD-0.0.1-SNAPSHOT.jar \
+          ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USERNAME }}/CRUD.jar
+
+    - name: Reiniciar app en EC2
+      run: |
+        ssh -i ec2.pem -o StrictHostKeyChecking=no \
+          ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} << 'EOF'
+          pkill -f CRUD.jar || true
+          nohup java -jar /home/${{ secrets.EC2_USERNAME }}/CRUD.jar \
+            --server.port=8080 > app.log 2>&1 &
+          EOF
