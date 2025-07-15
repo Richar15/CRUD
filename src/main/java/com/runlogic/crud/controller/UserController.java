@@ -29,6 +29,10 @@ public class UserController {
         return ResponseEntity.ok(userService.findAll());
     }
 
+    @GetMapping("/hello")
+    public String sayHello() {
+        return "Hola Richard, este es un endpoint que retorna un String 🚀";
+    }
     @GetMapping("/{id}")
     public ResponseEntity<UserDTO> findById(@PathVariable Long id) {
         UserDTO user = userService.findById(id);
